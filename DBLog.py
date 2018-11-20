@@ -17,7 +17,8 @@ def getMostPopularThreeArticlesAllTime():
 
 def getMostPopularAuthorsAllTime():
     db = psycopg2.connect("dbname=news")
-    query = "select authors.name, count(authors.id) as num from articles, log, authors \
+    query = "select authors.name, count(authors.id) \
+    as num from articles, log, authors \
     where articles.slug = split_part(log.path,'/', 3) \
     and articles.author = authors.id \
     group by authors.name order by num desc;"
@@ -33,12 +34,21 @@ def getMostPopularAuthorsAllTime():
 
 def getWhichDaysHaveErrorsMoreThan1Percent():
     db = psycopg2.connect("dbname=news")
-    query = "select to_char(allRequests.day, 'Mon DD, YYYY'), round(((badRequests.numOfBadRequests::decimal) * 100 / allRequests.totalRequests), 1) as result \
-    from ( select date_trunc('day', time) as day, count(*) as numOfBadRequests from log \
-    where status = '404 NOT FOUND' group by day) as badRequests \
-    join ( select date_trunc('day', time) as day, count(*) as totalRequests from log group by day) as allRequests \
-    on allRequests.day = badRequests.day \
-    where (((badRequests.numOfBadRequests::decimal) / allRequests.totalRequests) > 0.01)"
+    query = """
+    select to_char(allRequests.day, 'Mon DD, YYYY'),
+        round(((badRequests.numOfBadRequests::decimal) * 100 /
+        allRequests.totalRequests), 1) as result
+        from (
+            select date_trunc('day', time) as day, count(*) as numOfBadRequests
+            from log where status = '404 NOT FOUND' group by day)
+            as badRequests
+        join (
+            select date_trunc('day', time) as day, count(*) as totalRequests
+            from log group by day) as allRequests on
+            allRequests.day = badRequests.day
+    where (((badRequests.numOfBadRequests::decimal) /
+        allRequests.totalRequests) > 0.01)
+        """
 
     cursor = db.cursor()
     cursor.execute(query)
